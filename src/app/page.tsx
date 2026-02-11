@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { AnalysisResult, HistoryItem, ApiResponse } from "@/lib/types";
 import { compressForApi, compressForThumbnail } from "@/lib/image";
 import { getHistory, addHistory } from "@/lib/storage";
@@ -28,7 +28,6 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [thumbnail, setThumbnail] = useState<string>("");
   const [error, setError] = useState<ErrorInfo | null>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
 
   // 履歴をロード
   useEffect(() => {
@@ -171,7 +170,6 @@ export default function Home() {
         <div className="w-full mb-8">
           <CameraButton
             onImageSelected={handleImageSelected}
-            disabled={appState === "loading"}
           />
         </div>
 
