@@ -5,6 +5,7 @@ import { AnalysisResult, PracticeMode, VocabDirection } from "@/lib/types";
 import ModeToggle from "./ModeToggle";
 import SentenceCard from "./SentenceCard";
 import VocabularyCard from "./VocabularyCard";
+import PdfExportButton from "./PdfExportButton";
 
 interface PracticeViewProps {
     data: AnalysisResult;
@@ -78,6 +79,11 @@ export default function PracticeView({
                         ← 戻る
                     </button>
                     <div className="flex gap-2">
+                        <PdfExportButton
+                            data={data}
+                            mode={mode}
+                            vocabDirection={vocabDirection}
+                        />
                         <button
                             onClick={showAll}
                             className="text-xs text-white/50 hover:text-white/80 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all"
