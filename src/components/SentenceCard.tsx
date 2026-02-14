@@ -21,6 +21,13 @@ export default function SentenceCard({
 
     return (
         <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-5 border border-white/10">
+            {/* 文法ポイント */}
+            <div className="mb-2">
+                <span className="inline-block text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full px-2.5 py-0.5">
+                    {sentence.grammar_point}
+                </span>
+            </div>
+
             {/* 問題番号 + 出題 */}
             <div className="mb-3">
                 <span className="text-blue-400 text-sm font-bold mr-2">

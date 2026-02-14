@@ -1,10 +1,9 @@
-/** AI解析結果の英文 */
+/** AI解析結果の英文（オリジナル問題） */
 export interface Sentence {
   id: number;
   english: string;
   japanese: string;
-  original_type: "complete" | "fill_in_blank" | "reorder";
-  original_text: string;
+  grammar_point: string;
 }
 
 /** AI解析結果の単語・熟語 */
