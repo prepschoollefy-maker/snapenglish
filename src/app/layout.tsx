@@ -14,9 +14,9 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "SnapEnglish - 撮って学ぶ英語練習アプリ",
+  title: "SnapEnglish - 英文の和訳・構造解析ツール",
   description:
-    "英語の教科書や問題集を撮影するだけで、AIが英作文・和訳・単語テストを自動作成。スマホで手軽に英語学習。",
+    "英語の文章を撮影するだけで、AIが和訳と文構造（SVOC）を解析。学習用途の個人ツール。",
   manifest: "/manifest.json",
 };
 

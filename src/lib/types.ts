@@ -1,30 +1,31 @@
-/** AI解析結果の英文（オリジナル問題） */
-export interface Sentence {
+/** 文構造解析の1文 */
+export interface SentenceAnalysis {
+  id: number;
+  original: string;          // 元の英文
+  translation: string;       // 和訳
+  structure: string;         // SVOC構造（例: "S(The boy) V(ran) M(to the store)"）
+  clauses?: string;          // 節・修飾の説明（あれば）
+}
+
+/** 重要語句 */
+export interface KeyPhrase {
   id: number;
   english: string;
   japanese: string;
-  grammar_point: string;
+  note?: string;             // 補足（用法、品詞など）
 }
 
-/** AI解析結果の単語・熟語 */
-export interface VocabularyItem {
-  id: number;
-  english: string;
-  japanese: string;
-  pos: "noun" | "verb" | "adjective" | "adverb" | "phrase" | "other";
-}
-
-/** AI解析結果全体 */
+/** 解析結果全体 */
 export interface AnalysisResult {
-  sentences: Sentence[];
-  vocabulary: VocabularyItem[];
+  sentences: SentenceAnalysis[];
+  key_phrases: KeyPhrase[];
 }
 
-/** API レスポンス */
+/** APIレスポンス */
 export interface ApiResponse {
   success: boolean;
   data?: AnalysisResult;
-  error?: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR";
+  error?: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG";
 }
 
 /** 履歴アイテム */
@@ -35,9 +36,3 @@ export interface HistoryItem {
   label: string;
   data: AnalysisResult;
 }
-
-/** 練習モード */
-export type PracticeMode = "en_to_jp" | "jp_to_en" | "vocabulary";
-
-/** 単語テストの方向 */
-export type VocabDirection = "en_to_jp" | "jp_to_en";

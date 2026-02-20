@@ -2,37 +2,117 @@ import { NextResponse } from "next/server";
 import { analyzeImage } from "@/lib/ai";
 import { ApiResponse } from "@/lib/types";
 
+// インメモリレート制限
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1分
+const RATE_LIMIT_MAX = 10; // 1分あたり10リクエスト
+
+// 画像サイズ上限（約5MB base64）
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 * 1.37; // base64 overhead
+
+const CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate",
+};
+
+function getClientIp(request: Request): string {
+    const forwarded = request.headers.get("x-forwarded-for");
+    if (forwarded) return forwarded.split(",")[0].trim();
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) return realIp;
+    return "unknown";
+}
+
+function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+        return true;
+    }
+
+    if (entry.count >= RATE_LIMIT_MAX) {
+        return false;
+    }
+
+    entry.count++;
+    return true;
+}
+
 export async function POST(request: Request) {
+    const requestId = crypto.randomUUID();
+    const startTime = Date.now();
+
     try {
+        // レート制限チェック
+        const ip = getClientIp(request);
+        if (!checkRateLimit(ip)) {
+            console.error(JSON.stringify({
+                requestId,
+                timestamp: new Date().toISOString(),
+                error: "RATE_LIMITED",
+            }));
+            return NextResponse.json<ApiResponse>(
+                { success: false, error: "API_ERROR" },
+                { status: 429, headers: CACHE_HEADERS }
+            );
+        }
+
         const body = await request.json();
         const { image } = body;
 
         if (!image || typeof image !== "string") {
             return NextResponse.json<ApiResponse>(
                 { success: false, error: "API_ERROR" },
-                { status: 400 }
+                { status: 400, headers: CACHE_HEADERS }
+            );
+        }
+
+        // 画像サイズチェック
+        if (image.length > MAX_IMAGE_SIZE) {
+            return NextResponse.json<ApiResponse>(
+                { success: false, error: "TEXT_TOO_LONG" },
+                { status: 400, headers: CACHE_HEADERS }
             );
         }
 
         const data = await analyzeImage(image);
 
-        return NextResponse.json<ApiResponse>({
-            success: true,
-            data,
-        });
-    } catch (error) {
-        console.error("Analyze API error:", error);
+        console.error(JSON.stringify({
+            requestId,
+            timestamp: new Date().toISOString(),
+            status: "success",
+            latencyMs: Date.now() - startTime,
+        }));
 
-        if (error instanceof Error && error.message === "NO_TEXT_FOUND") {
+        return NextResponse.json<ApiResponse>(
+            { success: true, data },
+            { headers: CACHE_HEADERS }
+        );
+    } catch (error) {
+        const errorCategory =
+            error instanceof Error && error.message === "NO_TEXT_FOUND"
+                ? "NO_TEXT_FOUND"
+                : "API_ERROR";
+
+        // メタデータのみログ（ユーザーコンテンツを含めない）
+        console.error(JSON.stringify({
+            requestId,
+            timestamp: new Date().toISOString(),
+            error: errorCategory,
+            latencyMs: Date.now() - startTime,
+        }));
+
+        if (errorCategory === "NO_TEXT_FOUND") {
             return NextResponse.json<ApiResponse>(
                 { success: false, error: "NO_TEXT_FOUND" },
-                { status: 200 }
+                { status: 200, headers: CACHE_HEADERS }
             );
         }
 
         return NextResponse.json<ApiResponse>(
             { success: false, error: "API_ERROR" },
-            { status: 500 }
+            { status: 500, headers: CACHE_HEADERS }
         );
     }
 }

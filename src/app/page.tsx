@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AnalysisResult, HistoryItem, ApiResponse } from "@/lib/types";
 import { compressForApi, compressForThumbnail } from "@/lib/image";
-import { getHistory, addHistory } from "@/lib/storage";
+import { getHistory, addHistory, clearAllHistory } from "@/lib/storage";
 import CameraButton from "@/components/CameraButton";
 import LoadingScreen from "@/components/LoadingScreen";
-import PracticeView from "@/components/PracticeView";
+import ResultView from "@/components/ResultView";
 import HistoryList from "@/components/HistoryList";
 
-type AppState = "home" | "loading" | "practice" | "error";
+type AppState = "home" | "loading" | "result" | "error";
 
 interface ErrorInfo {
-  type: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR";
+  type: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG";
   message: string;
 }
 
@@ -20,6 +20,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   NO_TEXT_FOUND: "英語のテキストが見つかりませんでした",
   API_ERROR: "通信エラーが発生しました",
   PARSE_ERROR: "データの解析に失敗しました",
+  TEXT_TOO_LONG: "画像が大きすぎます。もう少し小さい画像をお試しください",
 };
 
 export default function Home() {
@@ -28,25 +29,41 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [thumbnail, setThumbnail] = useState<string>("");
   const [error, setError] = useState<ErrorInfo | null>(null);
+  const [saved, setSaved] = useState(false);
 
-  // 履歴をロード
+  // 履歴をロード（期限切れ自動清掃含む）
   useEffect(() => {
     setHistory(getHistory());
   }, []);
+
+  const handleSave = useCallback(() => {
+    if (!result || saved) return;
+    const now = new Date();
+    const label = `解析 ${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const historyItem: HistoryItem = {
+      id: crypto.randomUUID(),
+      created_at: now.toISOString(),
+      thumbnail,
+      label,
+      data: result,
+    };
+    addHistory(historyItem);
+    setHistory(getHistory());
+    setSaved(true);
+  }, [result, saved, thumbnail]);
 
   const handleImageSelected = async (file: File) => {
     try {
       setAppState("loading");
       setError(null);
+      setSaved(false);
 
-      // 画像を圧縮
       const [apiImage, thumbImage] = await Promise.all([
         compressForApi(file),
         compressForThumbnail(file),
       ]);
       setThumbnail(thumbImage);
 
-      // API呼び出し
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,21 +83,7 @@ export default function Home() {
       }
 
       setResult(data.data);
-
-      // 履歴に追加
-      const now = new Date();
-      const label = `撮影 ${now.getMonth() + 1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const historyItem: HistoryItem = {
-        id: crypto.randomUUID(),
-        created_at: now.toISOString(),
-        thumbnail: thumbImage,
-        label,
-        data: data.data,
-      };
-      addHistory(historyItem);
-      setHistory(getHistory());
-
-      setAppState("practice");
+      setAppState("result");
     } catch (err) {
       console.error("Error processing image:", err);
       setError({
@@ -93,13 +96,20 @@ export default function Home() {
 
   const handleHistorySelect = (item: HistoryItem) => {
     setResult(item.data);
-    setAppState("practice");
+    setSaved(true); // 履歴から開いた場合は既に保存済み
+    setAppState("result");
+  };
+
+  const handleClearAll = () => {
+    clearAllHistory();
+    setHistory([]);
   };
 
   const handleBackToHome = () => {
     setAppState("home");
     setResult(null);
     setError(null);
+    setSaved(false);
     setHistory(getHistory());
   };
 
@@ -108,13 +118,15 @@ export default function Home() {
     return <LoadingScreen thumbnail={thumbnail} />;
   }
 
-  // ── 練習画面 ──
-  if (appState === "practice" && result) {
+  // ── 結果画面 ──
+  if (appState === "result" && result) {
     return (
-      <PracticeView
+      <ResultView
         data={result}
         onBack={handleBackToHome}
         onNewPhoto={handleBackToHome}
+        onSave={handleSave}
+        saved={saved}
       />
     );
   }
@@ -162,20 +174,31 @@ export default function Home() {
             SnapEnglish
           </h1>
           <p className="text-white/40 text-sm mt-2">
-            撮って学ぶ英語練習アプリ
+            英文の和訳・構造解析ツール
           </p>
         </div>
 
         {/* 撮影・選択ボタン */}
-        <div className="w-full mb-8">
-          <CameraButton
-            onImageSelected={handleImageSelected}
-          />
+        <div className="w-full mb-4">
+          <CameraButton onImageSelected={handleImageSelected} />
+        </div>
+
+        {/* 注意書き */}
+        <div className="w-full mb-8 px-2">
+          <ul className="text-white/30 text-xs leading-relaxed space-y-1">
+            <li>・自分で読むための学習用途で使ってください。結果の転載・配布はしないでください。</li>
+            <li>・利用権限のある文章のみを入力してください。</li>
+            <li>・長文は分割して撮影してください（1〜数文が目安）。</li>
+          </ul>
         </div>
 
         {/* 履歴リスト */}
         <div className="w-full flex-1">
-          <HistoryList items={history} onSelect={handleHistorySelect} />
+          <HistoryList
+            items={history}
+            onSelect={handleHistorySelect}
+            onClearAll={handleClearAll}
+          />
         </div>
 
         {/* フッター */}
