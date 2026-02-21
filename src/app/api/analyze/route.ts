@@ -97,7 +97,9 @@ export async function POST(request: Request) {
                 ? "NO_TEXT_FOUND"
                 : errorMessage === "RATE_LIMITED"
                     ? "RATE_LIMITED"
-                    : "API_ERROR";
+                    : errorMessage === "SERVICE_UNAVAILABLE"
+                        ? "SERVICE_UNAVAILABLE"
+                        : "API_ERROR";
 
         // メタデータのみログ（ユーザーコンテンツを含めない）
         console.error(JSON.stringify({
@@ -118,6 +120,13 @@ export async function POST(request: Request) {
             return NextResponse.json<ApiResponse>(
                 { success: false, error: "RATE_LIMITED" },
                 { status: 429, headers: CACHE_HEADERS }
+            );
+        }
+
+        if (errorCategory === "SERVICE_UNAVAILABLE") {
+            return NextResponse.json<ApiResponse>(
+                { success: false, error: "SERVICE_UNAVAILABLE" },
+                { status: 503, headers: CACHE_HEADERS }
             );
         }
 

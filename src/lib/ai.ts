@@ -143,9 +143,14 @@ export async function analyzeImage(
                 throw error;
             }
 
-            // Anthropic APIのレート制限はリトライせず即座に返す
-            if (error instanceof Anthropic.APIError && error.status === 429) {
-                throw new Error("RATE_LIMITED");
+            // Anthropic APIのエラーはリトライせず即座に返す
+            if (error instanceof Anthropic.APIError) {
+                if (error.status === 429) {
+                    throw new Error("RATE_LIMITED");
+                }
+                if (error.status === 401 || error.status === 403) {
+                    throw new Error("SERVICE_UNAVAILABLE");
+                }
             }
 
             if (attempt === maxRetries - 1) {
