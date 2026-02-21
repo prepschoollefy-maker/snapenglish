@@ -91,7 +91,7 @@ export async function analyzeImage(
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-        model: process.env.AI_MODEL || "gemini-2.0-flash",
+        model: process.env.AI_MODEL || "gemini-2.5-flash",
         systemInstruction: SYSTEM_PROMPT,
     });
 
