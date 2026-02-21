@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AnalysisResult } from "./types";
 
 // 著作権保護のため、1回のリクエストで解析する最大文数
@@ -78,19 +78,22 @@ function parseAiResponse(text: string): AnalysisResult {
 }
 
 /**
- * 画像をClaude APIに送信して解析結果を返す
+ * 画像をGemini APIに送信して解析結果を返す
  * パース失敗時は最大2回リトライ
  */
 export async function analyzeImage(
     imageBase64: string
 ): Promise<AnalysisResult> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-        throw new Error("ANTHROPIC_API_KEY is not set");
+        throw new Error("GEMINI_API_KEY is not set");
     }
 
-    const client = new Anthropic({ apiKey });
-    const model = process.env.AI_MODEL || "claude-sonnet-4-20250514";
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: process.env.AI_MODEL || "gemini-2.0-flash",
+        systemInstruction: SYSTEM_PROMPT,
+    });
 
     // base64のdata URL部分を分離
     const base64Data = imageBase64.includes(",")
@@ -101,54 +104,42 @@ export async function analyzeImage(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const response = await client.messages.create({
-                model,
-                max_tokens: 4096,
-                system: SYSTEM_PROMPT,
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            {
-                                type: "image",
-                                source: {
-                                    type: "base64",
-                                    media_type: "image/jpeg",
-                                    data: base64Data,
-                                },
-                            },
-                            {
-                                type: "text",
-                                text: "この画像内の英文を読み取り、和訳とSVOC構造解析を行ってください。",
-                            },
-                        ],
+            const result = await model.generateContent([
+                {
+                    inlineData: {
+                        mimeType: "image/jpeg",
+                        data: base64Data,
                     },
-                ],
-            });
+                },
+                { text: "この画像内の英文を読み取り、和訳とSVOC構造解析を行ってください。" },
+            ]);
 
-            const textBlock = response.content.find((block) => block.type === "text");
-            if (!textBlock || textBlock.type !== "text") {
+            const response = result.response;
+            const text = response.text();
+
+            if (!text) {
                 throw new Error("Empty response from AI");
             }
 
-            const result = parseAiResponse(textBlock.text);
+            const parsed = parseAiResponse(text);
 
-            if (result.sentences.length === 0 && result.key_phrases.length === 0) {
+            if (parsed.sentences.length === 0 && parsed.key_phrases.length === 0) {
                 throw new Error("NO_TEXT_FOUND");
             }
 
-            return result;
+            return parsed;
         } catch (error) {
             if (error instanceof Error && error.message === "NO_TEXT_FOUND") {
                 throw error;
             }
 
-            // Anthropic APIのエラーはリトライせず即座に返す
-            if (error instanceof Anthropic.APIError) {
-                if (error.status === 429) {
+            // Gemini APIのエラーハンドリング
+            if (error instanceof Error) {
+                const msg = error.message.toLowerCase();
+                if (msg.includes("429") || msg.includes("resource exhausted") || msg.includes("rate limit")) {
                     throw new Error("RATE_LIMITED");
                 }
-                if (error.status === 401 || error.status === 403) {
+                if (msg.includes("401") || msg.includes("403") || msg.includes("api key") || msg.includes("permission")) {
                     throw new Error("SERVICE_UNAVAILABLE");
                 }
             }
