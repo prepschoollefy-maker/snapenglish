@@ -22,7 +22,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   NO_TEXT_FOUND: "英語のテキストが見つかりませんでした",
   API_ERROR: "通信エラーが発生しました",
   PARSE_ERROR: "データの解析に失敗しました",
-  TEXT_TOO_LONG: "画像が大きすぎます。もう少し小さい画像をお試しください",
+  TEXT_TOO_LONG: "入力が長すぎます。1〜3文程度に分割してお試しください",
   RATE_LIMITED: "リクエスト回数の上限に達しました。1分ほど待ってからお試しください",
   SERVICE_UNAVAILABLE: "現在サービスがメンテナンス中です（E-50）。しばらくお待ちください",
 };
@@ -250,9 +250,12 @@ export default function Home() {
         </div>
 
         {/* 撮影・選択ボタン */}
-        <div className="w-full mb-4">
+        <div className="w-full mb-1">
           <CameraButton onImageSelected={handleImageSelected} />
         </div>
+        <p className="text-white/30 text-xs mb-4 text-center">
+          ※ 1〜3文を切り取って撮影してください（ページ丸ごとはNG）
+        </p>
 
         {/* 区切り線 */}
         <div className="w-full flex items-center gap-3 mb-4">
@@ -271,8 +274,13 @@ export default function Home() {
           <ul className="text-white/30 text-xs leading-relaxed space-y-1">
             <li>・自分で読むための学習用途で使ってください。結果の転載・配布はしないでください。</li>
             <li>・利用権限のある文章のみを入力してください。</li>
-            <li>・長文は分割して撮影してください（1〜数文が目安）。</li>
+            <li>・長文は1〜3文ずつに分割してください。</li>
           </ul>
+          <div className="mt-3 pt-3 border-t border-white/5">
+            <p className="text-white/25 text-xs leading-relaxed">
+              入力された画像・テキスト・解析結果はサーバーに保存されません（処理後に破棄されます）。共有機能はありません。
+            </p>
+          </div>
         </div>
 
         {/* 履歴リスト */}
@@ -285,7 +293,12 @@ export default function Home() {
         </div>
 
         {/* フッター */}
-        <footer className="py-6 text-center">
+        <footer className="py-6 text-center space-y-2">
+          <div className="flex justify-center gap-4 text-white/30 text-xs">
+            <a href="/terms" className="hover:text-white/50 transition-colors">利用規約</a>
+            <a href="/privacy" className="hover:text-white/50 transition-colors">プライバシー</a>
+            <a href="/contact" className="hover:text-white/50 transition-colors">お問い合わせ</a>
+          </div>
           <p className="text-white/20 text-xs">
             © 2026 SnapEnglish - Powered by AI
           </p>

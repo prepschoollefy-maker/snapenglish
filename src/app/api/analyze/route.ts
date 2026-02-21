@@ -10,8 +10,8 @@ const RATE_LIMIT_MAX = 10; // 1分あたり10リクエスト
 // 画像サイズ上限（約5MB base64）
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 * 1.37; // base64 overhead
 
-// テキスト入力の文字数上限
-const MAX_TEXT_LENGTH = 2000;
+// テキスト入力の文字数上限（著作権保護: 数文程度に制限）
+const MAX_TEXT_LENGTH = 500;
 
 const CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate",

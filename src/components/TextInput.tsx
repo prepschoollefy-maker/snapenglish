@@ -7,7 +7,7 @@ interface TextInputProps {
     disabled?: boolean;
 }
 
-const MAX_LENGTH = 2000;
+const MAX_LENGTH = 500;
 
 export default function TextInput({ onSubmit, disabled }: TextInputProps) {
     const [text, setText] = useState("");
