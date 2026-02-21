@@ -4,21 +4,32 @@ import React, { useEffect, useState } from "react";
 
 interface LoadingScreenProps {
     thumbnail?: string;
+    mode?: "image" | "text";
 }
 
-const MESSAGES = [
+const IMAGE_MESSAGES = [
     "画像をアップロード中...",
     "英文を読み取っています...",
-    "問題を作成しています...",
+    "文構造を解析しています...",
 ];
 
-export default function LoadingScreen({ thumbnail }: LoadingScreenProps) {
+const TEXT_MESSAGES = [
+    "英文を解析しています...",
+    "文構造を解析しています...",
+];
+
+export default function LoadingScreen({ thumbnail, mode = "image" }: LoadingScreenProps) {
     const [messageIndex, setMessageIndex] = useState(0);
+    const messages = mode === "text" ? TEXT_MESSAGES : IMAGE_MESSAGES;
+
+    useEffect(() => {
+        setMessageIndex(0);
+    }, [mode]);
 
     useEffect(() => {
         const timer = setInterval(() => {
             setMessageIndex((prev) => {
-                if (prev < MESSAGES.length - 1) return prev + 1;
+                if (prev < messages.length - 1) return prev + 1;
                 return prev;
             });
         }, 3000);
@@ -47,12 +58,12 @@ export default function LoadingScreen({ thumbnail }: LoadingScreenProps) {
 
             {/* ステータスメッセージ */}
             <p className="text-white/90 text-lg font-medium animate-pulse">
-                {MESSAGES[messageIndex]}
+                {messages[messageIndex]}
             </p>
 
             {/* プログレスドット */}
             <div className="mt-6 flex gap-2">
-                {MESSAGES.map((_, i) => (
+                {messages.map((_, i) => (
                     <div
                         key={i}
                         className={`w-2 h-2 rounded-full transition-all duration-500 ${i <= messageIndex ? "bg-blue-500 scale-100" : "bg-white/20 scale-75"

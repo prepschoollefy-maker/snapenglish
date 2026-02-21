@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { analyzeImage } from "@/lib/ai";
+import { analyzeImage, analyzeText } from "@/lib/ai";
 import { ApiResponse } from "@/lib/types";
 
 // インメモリレート制限
@@ -9,6 +9,9 @@ const RATE_LIMIT_MAX = 10; // 1分あたり10リクエスト
 
 // 画像サイズ上限（約5MB base64）
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 * 1.37; // base64 overhead
+
+// テキスト入力の文字数上限
+const MAX_TEXT_LENGTH = 2000;
 
 const CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate",
@@ -60,24 +63,36 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { image } = body;
+        const { image, text } = body;
 
-        if (!image || typeof image !== "string") {
+        if ((!image || typeof image !== "string") && (!text || typeof text !== "string")) {
             return NextResponse.json<ApiResponse>(
                 { success: false, error: "API_ERROR" },
                 { status: 400, headers: CACHE_HEADERS }
             );
         }
 
-        // 画像サイズチェック
-        if (image.length > MAX_IMAGE_SIZE) {
-            return NextResponse.json<ApiResponse>(
-                { success: false, error: "TEXT_TOO_LONG" },
-                { status: 400, headers: CACHE_HEADERS }
-            );
-        }
+        let data;
 
-        const data = await analyzeImage(image);
+        if (text) {
+            // テキスト入力の場合
+            if (text.length > MAX_TEXT_LENGTH) {
+                return NextResponse.json<ApiResponse>(
+                    { success: false, error: "TEXT_TOO_LONG" },
+                    { status: 400, headers: CACHE_HEADERS }
+                );
+            }
+            data = await analyzeText(text);
+        } else {
+            // 画像入力の場合
+            if (image.length > MAX_IMAGE_SIZE) {
+                return NextResponse.json<ApiResponse>(
+                    { success: false, error: "TEXT_TOO_LONG" },
+                    { status: 400, headers: CACHE_HEADERS }
+                );
+            }
+            data = await analyzeImage(image);
+        }
 
         console.error(JSON.stringify({
             requestId,

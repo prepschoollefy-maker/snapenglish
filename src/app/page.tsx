@@ -5,11 +5,13 @@ import { AnalysisResult, HistoryItem, ApiResponse } from "@/lib/types";
 import { compressForApi, compressForThumbnail } from "@/lib/image";
 import { getHistory, addHistory, clearAllHistory } from "@/lib/storage";
 import CameraButton from "@/components/CameraButton";
+import TextInput from "@/components/TextInput";
 import LoadingScreen from "@/components/LoadingScreen";
 import ResultView from "@/components/ResultView";
 import HistoryList from "@/components/HistoryList";
+import SentenceSelector from "@/components/SentenceSelector";
 
-type AppState = "home" | "loading" | "result" | "error";
+type AppState = "home" | "loading" | "selecting" | "result" | "error";
 
 interface ErrorInfo {
   type: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG" | "RATE_LIMITED" | "SERVICE_UNAVAILABLE";
@@ -28,10 +30,12 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("home");
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [fullResult, setFullResult] = useState<AnalysisResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [thumbnail, setThumbnail] = useState<string>("");
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loadingMode, setLoadingMode] = useState<"image" | "text">("image");
 
   // 履歴をロード（期限切れ自動清掃含む）
   useEffect(() => {
@@ -56,6 +60,7 @@ export default function Home() {
 
   const handleImageSelected = async (file: File) => {
     try {
+      setLoadingMode("image");
       setAppState("loading");
       setError(null);
       setSaved(false);
@@ -84,10 +89,48 @@ export default function Home() {
         return;
       }
 
-      setResult(data.data);
-      setAppState("result");
+      setFullResult(data.data);
+      setAppState("selecting");
     } catch (err) {
       console.error("Error processing image:", err);
+      setError({
+        type: "API_ERROR",
+        message: "通信エラーが発生しました。もう一度お試しください。",
+      });
+      setAppState("error");
+    }
+  };
+
+  const handleTextSubmit = async (text: string) => {
+    try {
+      setLoadingMode("text");
+      setAppState("loading");
+      setError(null);
+      setSaved(false);
+      setThumbnail("");
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const data: ApiResponse = await response.json();
+
+      if (!data.success || !data.data) {
+        const errorType = data.error || "API_ERROR";
+        setError({
+          type: errorType,
+          message: ERROR_MESSAGES[errorType] || "エラーが発生しました",
+        });
+        setAppState("error");
+        return;
+      }
+
+      setFullResult(data.data);
+      setAppState("selecting");
+    } catch (err) {
+      console.error("Error processing text:", err);
       setError({
         type: "API_ERROR",
         message: "通信エラーが発生しました。もう一度お試しください。",
@@ -107,9 +150,25 @@ export default function Home() {
     setHistory([]);
   };
 
+  const handleSelectionConfirm = useCallback(
+    (selectedIds: number[]) => {
+      if (!fullResult) return;
+      const selectedSet = new Set(selectedIds);
+      const filtered: AnalysisResult = {
+        sentences: fullResult.sentences.filter((s) => selectedSet.has(s.id)),
+        key_phrases: fullResult.key_phrases,
+      };
+      setResult(filtered);
+      setFullResult(null);
+      setAppState("result");
+    },
+    [fullResult]
+  );
+
   const handleBackToHome = () => {
     setAppState("home");
     setResult(null);
+    setFullResult(null);
     setError(null);
     setSaved(false);
     setHistory(getHistory());
@@ -117,7 +176,17 @@ export default function Home() {
 
   // ── ローディング画面 ──
   if (appState === "loading") {
-    return <LoadingScreen thumbnail={thumbnail} />;
+    return <LoadingScreen thumbnail={thumbnail} mode={loadingMode} />;
+  }
+
+  // ── 文選択画面 ──
+  if (appState === "selecting" && fullResult) {
+    return (
+      <SentenceSelector
+        sentences={fullResult.sentences}
+        onConfirm={handleSelectionConfirm}
+      />
+    );
   }
 
   // ── 結果画面 ──
@@ -183,6 +252,18 @@ export default function Home() {
         {/* 撮影・選択ボタン */}
         <div className="w-full mb-4">
           <CameraButton onImageSelected={handleImageSelected} />
+        </div>
+
+        {/* 区切り線 */}
+        <div className="w-full flex items-center gap-3 mb-4">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-white/30 text-xs">または</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        {/* テキスト入力 */}
+        <div className="w-full mb-4">
+          <TextInput onSubmit={handleTextSubmit} />
         </div>
 
         {/* 注意書き */}

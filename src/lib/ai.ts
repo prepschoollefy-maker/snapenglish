@@ -4,7 +4,7 @@ import { AnalysisResult } from "./types";
 // 著作権保護のため、1回のリクエストで解析する最大文数
 const MAX_SENTENCES = 5;
 
-const SYSTEM_PROMPT = `あなたは英語学習支援AIです。画像内の英文を読み取り、以下を提供してください。
+const SYSTEM_PROMPT = `あなたは英語学習支援AIです。入力された英文について、以下を提供してください。
 
 1. 和訳：自然な日本語訳
 2. 文構造（SVOC）：S, V, O, C, M を明示（例: "S(The boy) V(ran) M(to the store)"）
@@ -16,7 +16,7 @@ const SYSTEM_PROMPT = `あなたは英語学習支援AIです。画像内の英�
 - 大量の原文を再掲載しないこと
 - 文ごとに分けて出力すること
 - 高校生・大学受験生にとって分かりやすい説明を心がけること
-- 画像内に${MAX_SENTENCES}文を超える英文がある場合は、最初の${MAX_SENTENCES}文のみを解析すること（著作権保護のため）
+- ${MAX_SENTENCES}文を超える英文がある場合は、最初の${MAX_SENTENCES}文のみを解析すること（著作権保護のため）
 
 出力形式: 以下のJSON形式のみ出力してください。JSON以外のテキストは一切出力しないでください。
 
@@ -122,6 +122,73 @@ export async function analyzeImage(
             }
 
             const parsed = parseAiResponse(text);
+
+            if (parsed.sentences.length === 0 && parsed.key_phrases.length === 0) {
+                throw new Error("NO_TEXT_FOUND");
+            }
+
+            return parsed;
+        } catch (error) {
+            if (error instanceof Error && error.message === "NO_TEXT_FOUND") {
+                throw error;
+            }
+
+            // Gemini APIのエラーハンドリング
+            if (error instanceof Error) {
+                const msg = error.message.toLowerCase();
+                if (msg.includes("429") || msg.includes("resource exhausted") || msg.includes("rate limit")) {
+                    throw new Error("RATE_LIMITED");
+                }
+                if (msg.includes("401") || msg.includes("403") || msg.includes("api key") || msg.includes("permission")) {
+                    throw new Error("SERVICE_UNAVAILABLE");
+                }
+            }
+
+            if (attempt === maxRetries - 1) {
+                throw error;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
+
+    throw new Error("API_ERROR");
+}
+
+/**
+ * テキストをGemini APIに送信して解析結果を返す
+ * パース失敗時は最大2回リトライ
+ */
+export async function analyzeText(
+    text: string
+): Promise<AnalysisResult> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is not set");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: process.env.AI_MODEL || "gemini-2.5-flash",
+        systemInstruction: SYSTEM_PROMPT,
+    });
+
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const result = await model.generateContent([
+                { text: "以下の英文を和訳し、SVOC構造解析を行ってください。\n\n" + text },
+            ]);
+
+            const response = result.response;
+            const responseText = response.text();
+
+            if (!responseText) {
+                throw new Error("Empty response from AI");
+            }
+
+            const parsed = parseAiResponse(responseText);
 
             if (parsed.sentences.length === 0 && parsed.key_phrases.length === 0) {
                 throw new Error("NO_TEXT_FOUND");
