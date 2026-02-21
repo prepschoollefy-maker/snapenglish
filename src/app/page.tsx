@@ -12,7 +12,7 @@ import HistoryList from "@/components/HistoryList";
 type AppState = "home" | "loading" | "result" | "error";
 
 interface ErrorInfo {
-  type: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG";
+  type: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG" | "RATE_LIMITED";
   message: string;
 }
 
@@ -21,6 +21,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   API_ERROR: "通信エラーが発生しました",
   PARSE_ERROR: "データの解析に失敗しました",
   TEXT_TOO_LONG: "画像が大きすぎます。もう少し小さい画像をお試しください",
+  RATE_LIMITED: "リクエスト回数の上限に達しました。1分ほど待ってからお試しください",
 };
 
 export default function Home() {

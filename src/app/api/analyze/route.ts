@@ -19,7 +19,8 @@ function getClientIp(request: Request): string {
     if (forwarded) return forwarded.split(",")[0].trim();
     const realIp = request.headers.get("x-real-ip");
     if (realIp) return realIp;
-    return "unknown";
+    // ローカル開発時はヘッダーが無いため、127.0.0.1をフォールバックとする
+    return "127.0.0.1";
 }
 
 function checkRateLimit(ip: string): boolean {
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
                 error: "RATE_LIMITED",
             }));
             return NextResponse.json<ApiResponse>(
-                { success: false, error: "API_ERROR" },
+                { success: false, error: "RATE_LIMITED" },
                 { status: 429, headers: CACHE_HEADERS }
             );
         }
@@ -90,10 +91,13 @@ export async function POST(request: Request) {
             { headers: CACHE_HEADERS }
         );
     } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "";
         const errorCategory =
-            error instanceof Error && error.message === "NO_TEXT_FOUND"
+            errorMessage === "NO_TEXT_FOUND"
                 ? "NO_TEXT_FOUND"
-                : "API_ERROR";
+                : errorMessage === "RATE_LIMITED"
+                    ? "RATE_LIMITED"
+                    : "API_ERROR";
 
         // メタデータのみログ（ユーザーコンテンツを含めない）
         console.error(JSON.stringify({
@@ -107,6 +111,13 @@ export async function POST(request: Request) {
             return NextResponse.json<ApiResponse>(
                 { success: false, error: "NO_TEXT_FOUND" },
                 { status: 200, headers: CACHE_HEADERS }
+            );
+        }
+
+        if (errorCategory === "RATE_LIMITED") {
+            return NextResponse.json<ApiResponse>(
+                { success: false, error: "RATE_LIMITED" },
+                { status: 429, headers: CACHE_HEADERS }
             );
         }
 

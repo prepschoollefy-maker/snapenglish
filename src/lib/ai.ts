@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { AnalysisResult } from "./types";
 
+// 著作権保護のため、1回のリクエストで解析する最大文数
+const MAX_SENTENCES = 5;
+
 const SYSTEM_PROMPT = `あなたは英語学習支援AIです。画像内の英文を読み取り、以下を提供してください。
 
 1. 和訳：自然な日本語訳
@@ -13,6 +16,7 @@ const SYSTEM_PROMPT = `あなたは英語学習支援AIです。画像内の英�
 - 大量の原文を再掲載しないこと
 - 文ごとに分けて出力すること
 - 高校生・大学受験生にとって分かりやすい説明を心がけること
+- 画像内に${MAX_SENTENCES}文を超える英文がある場合は、最初の${MAX_SENTENCES}文のみを解析すること（著作権保護のため）
 
 出力形式: 以下のJSON形式のみ出力してください。JSON以外のテキストは一切出力しないでください。
 
@@ -63,6 +67,11 @@ function parseAiResponse(text: string): AnalysisResult {
     }
     if (!parsed.key_phrases || !Array.isArray(parsed.key_phrases)) {
         parsed.key_phrases = [];
+    }
+
+    // 著作権保護: サーバー側でも文数を制限
+    if (parsed.sentences.length > MAX_SENTENCES) {
+        parsed.sentences = parsed.sentences.slice(0, MAX_SENTENCES);
     }
 
     return parsed as AnalysisResult;
@@ -132,6 +141,11 @@ export async function analyzeImage(
         } catch (error) {
             if (error instanceof Error && error.message === "NO_TEXT_FOUND") {
                 throw error;
+            }
+
+            // Anthropic APIのレート制限はリトライせず即座に返す
+            if (error instanceof Anthropic.APIError && error.status === 429) {
+                throw new Error("RATE_LIMITED");
             }
 
             if (attempt === maxRetries - 1) {

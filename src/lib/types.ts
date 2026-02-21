@@ -25,7 +25,7 @@ export interface AnalysisResult {
 export interface ApiResponse {
   success: boolean;
   data?: AnalysisResult;
-  error?: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG";
+  error?: "NO_TEXT_FOUND" | "API_ERROR" | "PARSE_ERROR" | "TEXT_TOO_LONG" | "RATE_LIMITED";
 }
 
 /** 履歴アイテム */
