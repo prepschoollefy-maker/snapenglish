@@ -27,7 +27,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.snapenglish.app"
+      "package": "com.snapenglish.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,6 +44,13 @@
           "photosPermission": "英語テキストの画像を選択するために使用します"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9f2243a7-4d06-45de-b3b4-135bc018d6c6"
+      }
+    },
+    "owner": "koji0416"
   }
 }
