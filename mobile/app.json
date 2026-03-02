@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "SnapEnglish",
+    "slug": "snapenglish",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "snapenglish",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "bundleIdentifier": "com.snapenglish.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "英語テキストを撮影して解析するために使用します",
+        "NSPhotoLibraryUsageDescription": "英語テキストの画像を選択するために使用します"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.snapenglish.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "英語テキストを撮影して解析するために使用します",
+          "photosPermission": "英語テキストの画像を選択するために使用します"
+        }
+      ]
+    ]
+  }
+}
